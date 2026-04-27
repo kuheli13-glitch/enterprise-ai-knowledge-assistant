@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
 from app.adapters.models import Document
+from app.core.schemas import QuestionRequest
 
 router = APIRouter()
 
@@ -20,15 +21,12 @@ def health_check():
 @router.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
     if not file.filename.endswith(".txt"):
-        raise HTTPException(
-            status_code=400,
-            detail="Only .txt files are supported currently"
-        )
+        raise HTTPException(status_code=400, detail="Only .txt files are supported currently")
 
     content_bytes = await file.read()
     content_text = content_bytes.decode("utf-8")
 
-    db: Session = SessionLocal()
+    db = SessionLocal()
 
     new_doc = Document(
         file_name=file.filename,
@@ -45,4 +43,28 @@ async def upload_document(file: UploadFile = File(...)):
         "id": new_doc.id,
         "file_name": new_doc.file_name,
         "message": "File uploaded successfully"
+    }
+
+
+@router.post("/ask")
+def ask_question(payload: QuestionRequest):
+    db = SessionLocal()
+
+    docs = db.query(Document).all()
+
+    question = payload.question.lower()
+
+    for doc in docs:
+        if any(word in doc.content.lower() for word in question.split()):
+            db.close()
+            return {
+                "answer": doc.content,
+                "source": doc.file_name
+            }
+
+    db.close()
+
+    return {
+        "answer": "No relevant answer found.",
+        "source": None
     }

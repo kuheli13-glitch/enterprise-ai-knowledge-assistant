@@ -5,3 +5,7 @@ class UploadResponse(BaseModel):
     id: int
     file_name: str
     message: str
+
+
+class QuestionRequest(BaseModel):
+    question: str
